@@ -5,6 +5,8 @@ import base58 from 'bs58'
 import cc from 'crypto-conditions'
 import ccJsonify from './utils/ccJsonify'
 import sha256Hash from './sha256Hash'
+import sha256Bits from './sha256Bits'
+
 
 export default class Transaction {
     /**
@@ -32,7 +34,14 @@ export default class Transaction {
 
     static hashTransaction(transaction) {
         const tx = { ...transaction }
+        // console.dir('after deleted', tx, { depth: null, colors: true })
         return sha256Hash(Transaction.serializeTransactionIntoCanonicalString(tx))
+    }
+
+    static hashBitsTransaction(transaction) {
+        const tx = { ...transaction }
+        console.log('after deleted', tx)
+        return sha256Bits(Transaction.serializeTransactionIntoCanonicalString(tx))
     }
 
     static makeTransactionTemplate() {
@@ -238,21 +247,24 @@ export default class Transaction {
      */
     static signTransaction(transaction, ...privateKeys) {
         const signedTx = clone(transaction)
-        // console.log('xxxxxxxxxx')
-        // console.log(transaction)
         signedTx.inputs.forEach((input, index) => {
-            // console.log('iiiinputttt', input)
             const privateKey = privateKeys[index]
             const privateKeyBuffer = Buffer.from(base58.decode(privateKey))
+
+
             const serializedTransaction = Transaction
                 .serializeTransactionIntoCanonicalString(transaction)
+
             console.log('Does it have fulfills?', input.fulfills)
+
+
             const transactionToHash = input.fulfills ? serializedTransaction
                 .concat(input.fulfills.transaction_id)
                 .concat(input.fulfills.output_index) : serializedTransaction
             console.log('transaction fulfillment', transactionToHash)
 
-            const hashedTransaction = Transaction.hashTransaction(transactionToHash)
+            const hashedTransaction = Transaction.hashBitsTransaction(transactionToHash)
+
             console.log('This is the normal', hashedTransaction)
 
             const ed25519Fulfillment = new cc.Ed25519Sha256()
@@ -260,10 +272,11 @@ export default class Transaction {
             const fulfillmentUri = ed25519Fulfillment.serializeUri()
 
             input.fulfillment = fulfillmentUri
+            console.log('fulfillment', fulfillmentUri)
         })
 
         signedTx.id = Transaction.hashTransaction(signedTx)
-        console.dir(signedTx, { depth: null, colors: true })
+        console.dir('Signed', signedTx, { depth: null, colors: true })
         return signedTx
     }
 }
